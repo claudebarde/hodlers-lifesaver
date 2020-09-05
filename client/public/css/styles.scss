@@ -3,4 +3,10 @@ body {
   height: 100%;
   padding: 0px;
   margin: 0px;
+  background: rgb(190, 227, 248);
+  background: linear-gradient(
+    325deg,
+    rgba(190, 227, 248, 0.500437675070028) 0%,
+    rgba(255, 255, 255, 1) 100%
+  );
 }
