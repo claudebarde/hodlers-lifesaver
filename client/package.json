@@ -1,0 +1,24 @@
+{
+  "name": "hodlers-lifesaver",
+  "version": "1.0.0",
+  "license": "MIT",
+  "browserslist": [
+    "last 1 chrome versions"
+  ],
+  "scripts": {
+    "dev": "parcel public/index.html",
+    "build": "parcel build public/index.html"
+  },
+  "devDependencies": {
+    "parcel-bundler": "^1.12.4",
+    "parcel-plugin-svelte": "^4.0.4",
+    "sass": "^1.23.0",
+    "svelte": "^3.12.1"
+  },
+  "dependencies": {
+    "@ledgerhq/hw-transport-u2f": "^5.22.0",
+    "@taquito/beacon-wallet": "^6.3.5-beta.0",
+    "@taquito/ledger-signer": "^6.4.0-ledger.0",
+    "@taquito/taquito": "^6.3.5-beta.0"
+  }
+}
