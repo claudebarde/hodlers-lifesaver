@@ -11,24 +11,27 @@ type entrypoint =
 
 (* Saves current rate with amount from user *)
 let hodl (s: storage): operation list * storage = 
-  (* Checks if user doesn't exist in ledger *)
-  let new_storage: storage = match Big_map.find_opt Tezos.source s.ledger with
-    | Some acc -> (failwith "ACCOUNT_EXISTS": storage)
-    | None -> 
-      { s with ledger = Big_map.add Tezos.source { price = 0n; deposit = Tezos.amount } s.ledger } in
-  (* Prepares call to oracle *)
-  let call_to_oracle: nat contract contract = 
-    match (Tezos.get_entrypoint_opt "%get" s.oracle: nat contract contract option) with
-      | None -> (failwith "NO_CONTRACT_FOUND": nat contract contract)
-      | Some contract -> contract in
-  let param: nat contract = 
-    match (Tezos.get_entrypoint_opt "%hodl_callback" Tezos.self_address: nat contract option) with
-      | None -> (failwith "NO_CONTRACT_FOUND": nat contract)
-      | Some contract -> contract in
-  (* Builds transaction *)
-  let op: operation = Tezos.transaction param 0tez call_to_oracle in
+  if Tezos.amount = 0tez
+  then (failwith "EMPTY_AMOUNT": operation list * storage)
+  else
+    (* Checks if user doesn't exist in ledger *)
+    let new_storage: storage = match Big_map.find_opt Tezos.source s.ledger with
+      | Some acc -> (failwith "ACCOUNT_EXISTS": storage)
+      | None -> 
+        { s with ledger = Big_map.add Tezos.source { price = 0n; deposit = Tezos.amount } s.ledger } in
+    (* Prepares call to oracle *)
+    let call_to_oracle: nat contract contract = 
+      match (Tezos.get_entrypoint_opt "%get" s.oracle: nat contract contract option) with
+        | None -> (failwith "NO_CONTRACT_FOUND": nat contract contract)
+        | Some contract -> contract in
+    let param: nat contract = 
+      match (Tezos.get_entrypoint_opt "%hodl_callback" Tezos.self_address: nat contract option) with
+        | None -> (failwith "NO_CONTRACT_FOUND": nat contract)
+        | Some contract -> contract in
+    (* Builds transaction *)
+    let op: operation = Tezos.transaction param 0tez call_to_oracle in
 
-  [op], new_storage
+    [op], new_storage
 
 (* Gets current rate from oracle to save in the storage *)
 let hodl_callback (price, s: nat * storage) = 

@@ -55,6 +55,20 @@ contract("Hodlers Lifesaver", () => {
     assert.isNotNaN(fakeOracleStorage);
   });
 
+  it("should prevent empty amounts", async () => {
+    let err;
+
+    try {
+      const op = await contract.methods.hodl([["unit"]]).send();
+      await op.confirmation();
+    } catch (error) {
+      err = error.message;
+    }
+
+    assert.isDefined(err);
+    assert.equal(err, "EMPTY_AMOUNT");
+  });
+
   it("Should allow Alice to deposit funds", async () => {
     const deposit = 5000000;
 
@@ -72,6 +86,23 @@ contract("Hodlers Lifesaver", () => {
 
     assert.equal(account.deposit.toNumber(), deposit);
     assert.equal(account.price.toNumber(), fakeOracleStorage);
+  });
+
+  it("should prevent Alice from depositing funds again", async () => {
+    const deposit = 3000000;
+    let err;
+
+    try {
+      const op = await contract.methods
+        .hodl([["unit"]])
+        .send({ amount: deposit, mutez: true });
+      await op.confirmation();
+    } catch (error) {
+      err = error.message;
+    }
+
+    assert.isDefined(err);
+    assert.equal(err, "ACCOUNT_EXISTS");
   });
 
   it("should manually decrease price in oracle contract to prevent Alice from withdrawing her funds", async () => {
