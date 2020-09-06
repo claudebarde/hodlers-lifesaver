@@ -13,6 +13,7 @@
   const hodlers = "KT1JdvuHZq54itykVeog5MHmnySnR28KVWBN"; // hodlers contract address
   let loadingAccount = false;
   let loadingHodl = false;
+  let loadingWithdraw = false;
 
   const fetchXTZtoUSD = async () => {
     const storage = await oracle.storage();
@@ -97,7 +98,21 @@
         }
         loadingHodl = false;
         depositAmount = "";
+        userBalance = (await Tezos.tz.getBalance(userAddress)).toNumber();
       }
+    }
+  };
+
+  const withdraw = async () => {
+    try {
+      loadingWithdraw = true;
+      const op = await contract.methods.withdraw([["unit"]]).send();
+      await op.confirmation();
+    } catch (error) {
+      console.log(error);
+    } finally {
+      loadingWithdraw = false;
+      userBalance = (await Tezos.tz.getBalance(userAddress)).toNumber();
     }
   };
 
@@ -186,6 +201,7 @@
 
   .button.info:hover {
     background-color: #90cdf4;
+    color: #2b6cb0;
   }
 
   .button.success {
@@ -195,6 +211,17 @@
 
   .button.success:hover {
     background-color: #9ae6b4;
+    color: #2f855a;
+  }
+
+  .button.error {
+    background-color: #fed7d7;
+    color: #e53e3e;
+  }
+
+  .button.error:hover {
+    background-color: #feb2b2;
+    color: #c53030;
   }
 
   .user-info {
@@ -265,18 +292,27 @@
     <p>Current exchange rate: 1 tez = ${rate / 10 ** 6}</p>
     <br />
     {#if loadingAccount}
-      <p>Loading account info</p>
+      <p>Loading account info...</p>
+      <br />
     {:else if !loadingAccount && userAddress && userBalance}
       <div class="user-info">
         {#if userAccount}
           {#if userAccount.price.toNumber() < rate}
             <p>
-              You have ꜩ {(userAccount.deposit.toNumber() / 1000000).toLocaleString('en-US')}
+              You have ꜩ {(userAccount.deposit.toNumber() / 10 ** 6).toLocaleString('en-US')}
               locked
             </p>
-            <button class="button success">Withdraw</button>
+            <button class="button success" on:click={withdraw}>
+              {loadingWithdraw ? 'Loading' : 'Withdraw'}
+            </button>
           {:else}
-            <button class="button">No Withdrawal</button>
+            <p>
+              You locked your tez when 1 tez was ${(userAccount.price.toNumber() / 10 ** 6).toLocaleString('en-US')}
+            </p>
+            <button class="button error">
+              <span>&#9888;</span>
+              No Withdrawal
+            </button>
           {/if}
         {:else}
           <div class="input-deposit">
