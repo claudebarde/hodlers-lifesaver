@@ -5,15 +5,19 @@
   import img from "../../public/images/weak-hands.png";
   import wallet from "../../public/images/icons8-wallet-48.png";
   import touchid from "../../public/images/icons8-touch-id-48.png";
+  import vault from "../../public/images/icons8-safe-48.png";
+  import code from "../../public/images/icons8-code-48.png";
+  import github from "../../public/images/icons8-github-50.png";
 
   let interval, oracle, contract, userAddress, userBalance, userAccount;
   let rate = 0;
   let depositAmount = "";
   const harbinger = "KT1VsWxgE683MiXoaevLbXtpJqpWrcaWaQV7"; // harbinger contract address
-  const hodlers = "KT1JdvuHZq54itykVeog5MHmnySnR28KVWBN"; // hodlers contract address
+  const hodlers = "KT1DbrATKBhG655Ppv6yYRgXs2NfULBVsniM"; // hodlers contract address
   let loadingAccount = false;
   let loadingHodl = false;
   let loadingWithdraw = false;
+  let loadingRefresh = false;
 
   const fetchXTZtoUSD = async () => {
     const storage = await oracle.storage();
@@ -85,11 +89,12 @@
         loadingHodl = true;
         const op = await contract.methods
           .hodl([["unit"]])
-          .send({ amount: depositAmount * 10 ** 6, mutez: true });
+          .send({ amount: Math.round(depositAmount * 10 ** 6), mutez: true });
         await op.confirmation();
       } catch (error) {
         console.log(error);
       } finally {
+        const storage = await contract.storage();
         const account = await storage.ledger.get(userAddress);
         if (account) {
           userAccount = account;
@@ -113,7 +118,22 @@
     } finally {
       loadingWithdraw = false;
       userBalance = (await Tezos.tz.getBalance(userAddress)).toNumber();
+      userAccount = undefined;
     }
+  };
+
+  const refresh = async () => {
+    loadingRefresh = true;
+
+    const storage = await contract.storage();
+    const account = await storage.ledger.get(userAddress);
+    if (account) {
+      userAccount = account;
+    } else {
+      userAccount = undefined;
+    }
+
+    loadingRefresh = false;
   };
 
   onMount(async () => {
@@ -149,7 +169,7 @@
     padding: 10px;
   }
 
-  .right-box {
+  .top-box {
     position: absolute;
     top: 10px;
     right: 10px;
@@ -160,7 +180,7 @@
     padding: 10px;
   }
 
-  .right-box__row {
+  .top-box__row {
     display: flex;
     flex-direction: row;
     justify-content: flex-start;
@@ -170,10 +190,34 @@
     font-size: 0.9rem;
   }
 
-  .right-box__row img {
+  .top-box__row img {
     width: 25px;
     height: 25px;
     padding: 0px 10px;
+  }
+
+  .bottom-box {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+  }
+
+  .bottom-box a img {
+    width: 25px;
+    height: 25px;
+    padding: 0px 10px;
+  }
+
+  .buttons {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
   }
 
   .button {
@@ -224,8 +268,26 @@
     color: #c53030;
   }
 
+  .button.round {
+    border-radius: 50%;
+    font-weight: bold;
+    font-size: 1.2rem;
+    height: 50px;
+    width: 50px;
+    padding: 0px;
+  }
+
+  .button.round.spin {
+    animation: rotate 1.5s linear infinite;
+  }
+  @keyframes rotate {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
   .user-info {
-    width: 60%;
+    width: 70%;
     margin: 0 auto;
   }
 
@@ -263,22 +325,54 @@
   .input-deposit button:hover {
     background-color: #90cdf4;
   }
+
+  @media only screen and (max-width: 700px) {
+    main {
+      display: grid;
+      grid-template: auto / 1fr;
+    }
+    #banner {
+      display: none;
+    }
+
+    .user-info {
+      width: 100%;
+    }
+
+    .top-box__row {
+      font-size: 0.8rem;
+    }
+
+    .top-box__row img {
+      width: 20px;
+      height: 20px;
+    }
+
+    .top-box__row img {
+      width: 20px;
+      height: 20px;
+    }
+  }
 </style>
 
 {#if !loadingAccount && userAddress && userBalance}
-  <div class="right-box">
-    <p class="right-box__row">
+  <div class="top-box">
+    <p class="top-box__row">
       <img src={touchid} alt="touch-id" />
       {userAddress.slice(0, 5) + '...' + userAddress.slice(-5)}
     </p>
-    <p class="right-box__row">
+    <p class="top-box__row">
       <img src={wallet} alt="wallet" />
       ꜩ {(userBalance / 1000000).toLocaleString('en-US')}
+    </p>
+    <p class="top-box__row">
+      <img src={vault} alt="safe" />
+      ꜩ {userAccount.deposit.toNumber() / 10 ** 6}
     </p>
   </div>
 {/if}
 <main>
-  <div>
+  <div id="banner">
     <img src={img} alt="weak hands pic" />
   </div>
   <div class="app">
@@ -298,35 +392,62 @@
       <div class="user-info">
         {#if userAccount}
           {#if userAccount.price.toNumber() < rate}
-            <p>
-              You have ꜩ {(userAccount.deposit.toNumber() / 10 ** 6).toLocaleString('en-US')}
-              locked
-            </p>
-            <button class="button success" on:click={withdraw}>
-              {loadingWithdraw ? 'Loading' : 'Withdraw'}
+            <p>You have ꜩ {userAccount.deposit.toNumber() / 10 ** 6} locked</p>
+            <button
+              class="button success"
+              disabled={loadingWithdraw}
+              on:click={withdraw}>
+              {loadingWithdraw ? 'Transferring' : 'Withdraw'}
             </button>
           {:else}
             <p>
-              You locked your tez when 1 tez was ${(userAccount.price.toNumber() / 10 ** 6).toLocaleString('en-US')}
+              You locked your tez when 1 tez was ${userAccount.price.toNumber() / 10 ** 6}
             </p>
-            <button class="button error">
-              <span>&#9888;</span>
-              No Withdrawal
-            </button>
+            <div class="buttons">
+              <button class="button error">
+                <span>&#9888;</span>
+                No Withdrawal
+              </button>
+              <button
+                class={`button round info ${loadingRefresh ? 'spin' : ''}`}
+                on:click={refresh}>
+                &#10227;
+              </button>
+            </div>
           {/if}
         {:else}
           <div class="input-deposit">
             <input type="text" bind:value={depositAmount} />
-            <button class="button-input" on:click={deposit}>
+            <button
+              class="button-input"
+              disabled={loadingHodl}
+              on:click={deposit}>
               {loadingHodl ? 'Loading' : 'Deposit'}
             </button>
           </div>
         {/if}
       </div>
     {:else}
-      <button class="button info" disabled={!contract} on:click={connectWallet}>
+      <button
+        class={`button ${!contract ? 'disabled' : 'info'}`}
+        disabled={!contract}
+        on:click={connectWallet}>
         Connect Wallet
       </button>
     {/if}
   </div>
 </main>
+<div class="bottom-box">
+  <a
+    href={`https://better-call.dev/carthagenet/${hodlers}/operations`}
+    target="_blank"
+    rel="noopener noreferrer">
+    <img src={code} alt="code" />
+  </a>
+  <a
+    href="https://github.com/claudebarde/hodlers-lifesaver"
+    target="_blank"
+    rel="noopener noreferrer">
+    <img src={github} alt="code" />
+  </a>
+</div>

@@ -57,7 +57,7 @@ let withdraw (s: storage): operation list * storage =
       | Some contract -> contract in
   (* Builds transaction *)
   let op: operation = 
-    Tezos.transaction ("XTZ-USD", (Tezos.self("%hodl_callback") : nat contract)) 0tez call_to_oracle in
+    Tezos.transaction ("XTZ-USD", (Tezos.self("%withdraw_callback") : nat contract)) 0tez call_to_oracle in
 
   [op], s
 
