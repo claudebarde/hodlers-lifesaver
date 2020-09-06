@@ -16,10 +16,8 @@
     "svelte": "^3.12.1"
   },
   "dependencies": {
-    "@ledgerhq/hw-transport-u2f": "^5.22.0",
     "@taquito/beacon-wallet": "^6.3.5-beta.0",
     "@taquito/ledger-signer": "^6.4.0-ledger.0",
-    "@taquito/taquito": "^6.3.5-beta.0",
-    "@thanos-wallet/dapp": "^0.6.0"
+    "@taquito/taquito": "^6.3.5-beta.0"
   }
 }
