@@ -8,16 +8,20 @@
 
   let interval, oracle, contract, userAddress, userBalance, userAccount;
   let rate = 0;
+  let depositAmount = "";
   const harbinger = "KT1VsWxgE683MiXoaevLbXtpJqpWrcaWaQV7"; // harbinger contract address
-  const hodlers = "KT1BGqHsd8Uza9wnZwR3XdqrxBPP6EnnWfaQ"; // hodlers contract address
+  const hodlers = "KT1JdvuHZq54itykVeog5MHmnySnR28KVWBN"; // hodlers contract address
+  let loadingAccount = false;
+  let loadingHodl = false;
 
   const fetchXTZtoUSD = async () => {
     const storage = await oracle.storage();
-    const _rate = await storage.assetMap.get("XTZ-USD");
-    return _rate.computedPrice.toNumber();
+    const rate = await storage.assetMap.get("XTZ-USD");
+    return rate.computedPrice.toNumber();
   };
 
   const connectWallet = async () => {
+    loadingAccount = true;
     const wallet = new BeaconWallet({
       name: "Hodlers Lifesaver",
       eventHandlers: {
@@ -53,12 +57,13 @@
         }
       }
     });
-    Tezos.setWalletProvider(wallet);
     await wallet.requestPermissions({
       network: {
-        type: "carthagenet"
+        type: "carthagenet",
+        rpcUrl: "https://carthagenet.smartpy.io"
       }
     });
+    Tezos.setWalletProvider(wallet);
     userAddress = await wallet.getPKH();
     userBalance = (await Tezos.tz.getBalance(userAddress)).toNumber();
     // checks if user already has a deposit in the contract
@@ -68,6 +73,31 @@
       userAccount = account;
     } else {
       userAccount = undefined;
+    }
+
+    loadingAccount = false;
+  };
+
+  const deposit = async () => {
+    if (!isNaN(+depositAmount)) {
+      try {
+        loadingHodl = true;
+        const op = await contract.methods
+          .hodl([["unit"]])
+          .send({ amount: depositAmount * 10 ** 6, mutez: true });
+        await op.confirmation();
+      } catch (error) {
+        console.log(error);
+      } finally {
+        const account = await storage.ledger.get(userAddress);
+        if (account) {
+          userAccount = account;
+        } else {
+          userAccount = undefined;
+        }
+        loadingHodl = false;
+        depositAmount = "";
+      }
     }
   };
 
@@ -79,7 +109,7 @@
 
     interval = setInterval(async () => {
       rate = await fetchXTZtoUSD();
-    }, 1000 * 60);
+    }, 1000 * 60 * 5);
   });
 
   onDestroy(() => clearInterval(interval));
@@ -102,6 +132,33 @@
       rgba(0, 0, 0, 0.04) 0px 16px 24px, rgba(0, 0, 0, 0.01) 0px 24px 32px;
     border-radius: 30px;
     padding: 10px;
+  }
+
+  .right-box {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+  }
+
+  .right-box__row {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 0px;
+    margin: 0px;
+    font-size: 0.9rem;
+  }
+
+  .right-box__row img {
+    width: 25px;
+    height: 25px;
+    padding: 0px 10px;
   }
 
   .button {
@@ -131,22 +188,18 @@
     background-color: #90cdf4;
   }
 
+  .button.success {
+    background-color: #c6f6d5;
+    color: #38a169;
+  }
+
+  .button.success:hover {
+    background-color: #9ae6b4;
+  }
+
   .user-info {
     width: 60%;
     margin: 0 auto;
-  }
-
-  .user-info__row {
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-start;
-    align-items: center;
-  }
-
-  .user-info__row img {
-    width: 32px;
-    height: 32px;
-    padding: 0px 10px;
   }
 
   .input-deposit {
@@ -164,6 +217,7 @@
     border-top-left-radius: 30px;
     border-bottom-left-radius: 30px;
     outline: none;
+    text-align: center;
   }
 
   .input-deposit button {
@@ -184,6 +238,18 @@
   }
 </style>
 
+{#if !loadingAccount && userAddress && userBalance}
+  <div class="right-box">
+    <p class="right-box__row">
+      <img src={touchid} alt="touch-id" />
+      {userAddress.slice(0, 5) + '...' + userAddress.slice(-5)}
+    </p>
+    <p class="right-box__row">
+      <img src={wallet} alt="wallet" />
+      ꜩ {(userBalance / 1000000).toLocaleString('en-US')}
+    </p>
+  </div>
+{/if}
 <main>
   <div>
     <img src={img} alt="weak hands pic" />
@@ -196,30 +262,33 @@
       <br />
       the exchange rate went up.
     </h3>
-    <br />
     <p>Current exchange rate: 1 tez = ${rate / 10 ** 6}</p>
     <br />
-    {#if userAddress && userBalance}
+    {#if loadingAccount}
+      <p>Loading account info</p>
+    {:else if !loadingAccount && userAddress && userBalance}
       <div class="user-info">
-        <p class="user-info__row">
-          <img src={touchid} alt="touch-id" />
-          Your address: {userAddress.slice(0, 5) + '...' + userAddress.slice(-5)}
-        </p>
-        <p class="user-info__row">
-          <img src={wallet} alt="wallet" />
-          Your balance: ꜩ {(userBalance / 1000000).toLocaleString('en-US')}
-        </p>
         {#if userAccount}
-          <p>You have an account</p>
+          {#if userAccount.price.toNumber() < rate}
+            <p>
+              You have ꜩ {(userAccount.deposit.toNumber() / 1000000).toLocaleString('en-US')}
+              locked
+            </p>
+            <button class="button success">Withdraw</button>
+          {:else}
+            <button class="button">No Withdrawal</button>
+          {/if}
         {:else}
           <div class="input-deposit">
-            <input type="text" />
-            <button class="button-input">Deposit</button>
+            <input type="text" bind:value={depositAmount} />
+            <button class="button-input" on:click={deposit}>
+              {loadingHodl ? 'Loading' : 'Deposit'}
+            </button>
           </div>
         {/if}
       </div>
     {:else}
-      <button class="button info" on:click={connectWallet}>
+      <button class="button info" disabled={!contract} on:click={connectWallet}>
         Connect Wallet
       </button>
     {/if}

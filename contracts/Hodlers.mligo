@@ -1,6 +1,7 @@
 type account = { price: nat; deposit: tez }
 type ledger = (address, account) big_map
 type storage = { ledger: ledger; oracle: address; admin: address }
+type oracle_param = string * nat contract
 
 type entrypoint =
 | Hodl of unit
@@ -20,16 +21,13 @@ let hodl (s: storage): operation list * storage =
       | None -> 
         { s with ledger = Big_map.add Tezos.source { price = 0n; deposit = Tezos.amount } s.ledger } in
     (* Prepares call to oracle *)
-    let call_to_oracle: nat contract contract = 
-      match (Tezos.get_entrypoint_opt "%get" s.oracle: nat contract contract option) with
-        | None -> (failwith "NO_CONTRACT_FOUND": nat contract contract)
-        | Some contract -> contract in
-    let param: nat contract = 
-      match (Tezos.get_entrypoint_opt "%hodl_callback" Tezos.self_address: nat contract option) with
-        | None -> (failwith "NO_CONTRACT_FOUND": nat contract)
+    let call_to_oracle: oracle_param contract = 
+      match (Tezos.get_entrypoint_opt "%get" s.oracle: oracle_param contract option) with
+        | None -> (failwith "NO_ORACLE_FOUND": oracle_param contract)
         | Some contract -> contract in
     (* Builds transaction *)
-    let op: operation = Tezos.transaction param 0tez call_to_oracle in
+    let op: operation = 
+      Tezos.transaction ("XTZ-USD", (Tezos.self("%hodl_callback") : nat contract)) 0tez call_to_oracle in
 
     [op], new_storage
 
@@ -53,16 +51,13 @@ let withdraw (s: storage): operation list * storage =
     | Some acc -> acc
   in
   (* Prepares call to oracle *)
-  let call_to_oracle: nat contract contract = 
-    match (Tezos.get_entrypoint_opt "%get" s.oracle: nat contract contract option) with
-      | None -> (failwith "NO_CONTRACT_FOUND": nat contract contract)
-      | Some contract -> contract in
-  let param: nat contract = 
-    match (Tezos.get_entrypoint_opt "%withdraw_callback" Tezos.self_address: nat contract option) with
-      | None -> (failwith "NO_CONTRACT_FOUND": nat contract)
+  let call_to_oracle: oracle_param contract = 
+    match (Tezos.get_entrypoint_opt "%get" s.oracle: oracle_param contract option) with
+      | None -> (failwith "NO_ORACLE_FOUND": oracle_param contract)
       | Some contract -> contract in
   (* Builds transaction *)
-  let op: operation = Tezos.transaction param 0tez call_to_oracle in
+  let op: operation = 
+    Tezos.transaction ("XTZ-USD", (Tezos.self("%hodl_callback") : nat contract)) 0tez call_to_oracle in
 
   [op], s
 
