@@ -155,13 +155,13 @@
     height: 100%;
     width: 100%;
     display: grid;
-    grid-template: auto / 1fr 1fr;
+    grid-template: auto / 1fr 2fr;
     place-items: center;
     text-align: center;
   }
 
   .app {
-    width: 80%;
+    width: 70%;
     background-color: white;
     box-shadow: rgba(0, 0, 0, 0.01) 0px 0px 1px, rgba(0, 0, 0, 0.04) 0px 4px 8px,
       rgba(0, 0, 0, 0.04) 0px 16px 24px, rgba(0, 0, 0, 0.01) 0px 24px 32px;
@@ -231,6 +231,7 @@
     transition: 0.3s;
     outline: none;
     margin-bottom: 14px;
+    font-weight: bold;
   }
 
   .button:active {
@@ -335,6 +336,10 @@
       display: none;
     }
 
+    .app {
+      width: 80%;
+    }
+
     .user-info {
       width: 100%;
     }
@@ -367,7 +372,7 @@
     </p>
     <p class="top-box__row">
       <img src={vault} alt="safe" />
-      ꜩ {userAccount.deposit.toNumber() / 10 ** 6}
+      ꜩ {userAccount ? userAccount.deposit.toNumber() / 10 ** 6 : 0}
     </p>
   </div>
 {/if}
@@ -381,7 +386,7 @@
     <h3>
       Withdraw them only if
       <br />
-      the exchange rate went up.
+      the exchange rate goes up.
     </h3>
     <p>Current exchange rate: 1 tez = ${rate / 10 ** 6}</p>
     <br />
