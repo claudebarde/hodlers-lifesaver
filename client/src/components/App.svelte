@@ -11,9 +11,14 @@
 
   let interval, oracle, contract, userAddress, userBalance, userAccount;
   let rate = 0;
+  let network = "mainnet";
   let depositAmount = "";
-  const harbinger = "KT1VsWxgE683MiXoaevLbXtpJqpWrcaWaQV7"; // harbinger contract address
-  const hodlers = "KT1DbrATKBhG655Ppv6yYRgXs2NfULBVsniM"; // hodlers contract address
+  /* Carthagenet addresses for testing
+   * const harbinger = "KT1VsWxgE683MiXoaevLbXtpJqpWrcaWaQV7";
+   * const hodlers = "KT1HmVUWnbY4yf4QTfx7M7abQBetKTGE5CwH";
+   */
+  const harbinger = "KT1Q4tVwWtnd8BQ9kSZ96bd5atf3dVkzhdHv"; // harbinger contract address
+  const hodlers = "KT1UHX2yb1D64iEXMwfh1oMwjyDQoeAKPson"; // hodlers contract address
   let loadingAccount = false;
   let loadingHodl = false;
   let loadingWithdraw = false;
@@ -64,8 +69,8 @@
     });
     await wallet.requestPermissions({
       network: {
-        type: "carthagenet",
-        rpcUrl: "https://carthagenet.smartpy.io"
+        type: network,
+        rpcUrl: `https://${network}.smartpy.io`
       }
     });
     Tezos.setWalletProvider(wallet);
@@ -137,7 +142,7 @@
   };
 
   onMount(async () => {
-    Tezos.setRpcProvider("https://carthagenet.smartpy.io");
+    Tezos.setRpcProvider(`https://${network}.smartpy.io`);
     oracle = await Tezos.wallet.at(harbinger);
     rate = await fetchXTZtoUSD();
     contract = await Tezos.wallet.at(hodlers);
@@ -444,7 +449,7 @@
 </main>
 <div class="bottom-box">
   <a
-    href={`https://better-call.dev/carthagenet/${hodlers}/operations`}
+    href={`https://better-call.dev/${network}/${hodlers}/operations`}
     target="_blank"
     rel="noopener noreferrer">
     <img src={code} alt="code" />

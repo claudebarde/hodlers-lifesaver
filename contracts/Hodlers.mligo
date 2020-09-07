@@ -32,16 +32,20 @@ let hodl (s: storage): operation list * storage =
     [op], new_storage
 
 (* Gets current rate from oracle to save in the storage *)
-let hodl_callback (price, s: nat * storage) = 
-  (* Fetches pre-saved entry in ledger *)
-  let account: account = match Big_map.find_opt Tezos.source s.ledger with
-    | None -> (failwith "NO_ACCOUNT": account)
-    | Some acc -> if acc.price = 0n then acc else (failwith "UNINITIALIZED_ACCOUNT": account) 
-  in
-  (* Adds current XTZ to USD price *)
-  let new_account: account = { account with price = price } in
-  (* Saves it back into the ledger *)
-  { s with ledger = Big_map.update Tezos.source (Some new_account) s.ledger }
+let hodl_callback (price, s: nat * storage): storage = 
+  (* Checks if the tx comes from the oracle *)
+  if Tezos.sender <> s.oracle
+  then (failwith "UNKNOWN_SENDER": storage)
+  else
+    (* Fetches pre-saved entry in ledger *)
+    let account: account = match Big_map.find_opt Tezos.source s.ledger with
+      | None -> (failwith "NO_ACCOUNT": account)
+      | Some acc -> if acc.price = 0n then acc else (failwith "UNINITIALIZED_ACCOUNT": account) 
+    in
+    (* Adds current XTZ to USD price *)
+    let new_account: account = { account with price = price } in
+    (* Saves it back into the ledger *)
+    { s with ledger = Big_map.update Tezos.source (Some new_account) s.ledger }
 
 (* Users ask to withdraw their deposit *)
 let withdraw (s: storage): operation list * storage = 
@@ -63,23 +67,26 @@ let withdraw (s: storage): operation list * storage =
 
 (* Gets rate from oracle to allow/deny withdrawal *)
 let withdraw_callback (price, s: nat * storage): operation list * storage = 
-  (* Fetches price when users deposited their tez *)
-  let account: account = match Big_map.find_opt Tezos.source s.ledger with
-    | None -> (failwith "NO_ACCOUNT": account)
-    | Some acc -> acc
-  in
-  (* Compares current price with previous price *)
-  if price < account.price
-  then (failwith "NO_WITHDRAWAL_ALLOWED": operation list * storage)
+  if Tezos.sender <> s.oracle
+  then (failwith "UNKNOWN_SENDER": operation list * storage)
   else
-    (* Current price is higher than price at deposit *)
-    let recipient: unit contract = 
-      match (Tezos.get_contract_opt (Tezos.source): unit contract option) with
-        | None -> (failwith "NO_ADDRESS_FOUND": unit contract)
-        | Some contr -> contr in
-    (* Sends transaction and clears user's account *)
-    [Tezos.transaction unit account.deposit recipient], 
-      { s with ledger = Big_map.remove Tezos.source s.ledger }
+    (* Fetches price when users deposited their tez *)
+    let account: account = match Big_map.find_opt Tezos.source s.ledger with
+      | None -> (failwith "NO_ACCOUNT": account)
+      | Some acc -> acc
+    in
+    (* Compares current price with previous price *)
+    if price < account.price
+    then (failwith "NO_WITHDRAWAL_ALLOWED": operation list * storage)
+    else
+      (* Current price is higher than price at deposit *)
+      let recipient: unit contract = 
+        match (Tezos.get_contract_opt (Tezos.source): unit contract option) with
+          | None -> (failwith "NO_ADDRESS_FOUND": unit contract)
+          | Some contr -> contr in
+      (* Sends transaction and clears user's account *)
+      [Tezos.transaction unit account.deposit recipient], 
+        { s with ledger = Big_map.remove Tezos.source s.ledger }
 
 (* Updates oracle address *)
 let update_oracle (new_address, s: address * storage): storage =
