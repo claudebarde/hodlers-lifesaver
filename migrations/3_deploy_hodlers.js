@@ -6,7 +6,7 @@ const faucet = require("../faucet");
 const initialStorage = {
   ledger: new MichelsonMap(),
   oracle: "KT1VsWxgE683MiXoaevLbXtpJqpWrcaWaQV7",
-  admin: faucet.pkh
+  admin: alice.pkh //faucet.pkh
 };
 
 module.exports = async (deployer, _network, accounts) => {

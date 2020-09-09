@@ -1,13 +1,15 @@
 type account = { price: nat; deposit: tez }
 type ledger = (address, account) big_map
 type storage = { ledger: ledger; oracle: address; admin: address }
-type oracle_param = string * nat contract
+type returned_val = { currency_pair: string; last_update: timestamp; rate: nat }
+type returned_val_michelson = returned_val michelson_pair_right_comb
+type oracle_param = string * returned_val_michelson contract
 
 type entrypoint =
 | Hodl of unit
-| Hodl_callback of nat
+| Hodl_callback of returned_val_michelson
 | Withdraw of unit
-| Withdraw_callback of nat
+| Withdraw_callback of returned_val_michelson
 | Update_oracle of address
 
 (* Saves current rate with amount from user *)
@@ -27,15 +29,19 @@ let hodl (s: storage): operation list * storage =
         | Some contract -> contract in
     (* Builds transaction *)
     let op: operation = 
-      Tezos.transaction ("XTZ-USD", (Tezos.self("%hodl_callback") : nat contract)) 0tez call_to_oracle in
+      Tezos.transaction ("XTZ-USD", (Tezos.self("%hodl_callback") : returned_val_michelson contract)) 0tez call_to_oracle in
 
     [op], new_storage
 
 (* Gets current rate from oracle to save in the storage *)
-let hodl_callback (price, s: nat * storage): storage = 
+let hodl_callback (p, s: returned_val_michelson * storage): storage = 
+  (* Converts parameter *)
+  let param: returned_val = Layout.convert_from_right_comb p in
   (* Checks if the tx comes from the oracle *)
   if Tezos.sender <> s.oracle
   then (failwith "UNKNOWN_SENDER": storage)
+  else if param.currency_pair <> "XTZ-USD"
+  then (failwith "UNEXPECTED_CURRENCY_PAIR": storage)
   else
     (* Fetches pre-saved entry in ledger *)
     let account: account = match Big_map.find_opt Tezos.source s.ledger with
@@ -43,7 +49,7 @@ let hodl_callback (price, s: nat * storage): storage =
       | Some acc -> if acc.price = 0n then acc else (failwith "UNINITIALIZED_ACCOUNT": account) 
     in
     (* Adds current XTZ to USD price *)
-    let new_account: account = { account with price = price } in
+    let new_account: account = { account with price = param.rate } in
     (* Saves it back into the ledger *)
     { s with ledger = Big_map.update Tezos.source (Some new_account) s.ledger }
 
@@ -61,14 +67,18 @@ let withdraw (s: storage): operation list * storage =
       | Some contract -> contract in
   (* Builds transaction *)
   let op: operation = 
-    Tezos.transaction ("XTZ-USD", (Tezos.self("%withdraw_callback") : nat contract)) 0tez call_to_oracle in
+    Tezos.transaction ("XTZ-USD", (Tezos.self("%withdraw_callback") : returned_val_michelson contract)) 0tez call_to_oracle in
 
   [op], s
 
 (* Gets rate from oracle to allow/deny withdrawal *)
-let withdraw_callback (price, s: nat * storage): operation list * storage = 
+let withdraw_callback (p, s: returned_val_michelson * storage): operation list * storage = 
+  (* Converts parameter *)
+  let param: returned_val = Layout.convert_from_right_comb p in
   if Tezos.sender <> s.oracle
   then (failwith "UNKNOWN_SENDER": operation list * storage)
+  else if param.currency_pair <> "XTZ-USD"
+  then (failwith "UNEXPECTED_CURRENCY_PAIR": operation list * storage)
   else
     (* Fetches price when users deposited their tez *)
     let account: account = match Big_map.find_opt Tezos.source s.ledger with
@@ -76,7 +86,7 @@ let withdraw_callback (price, s: nat * storage): operation list * storage =
       | Some acc -> acc
     in
     (* Compares current price with previous price *)
-    if price < account.price
+    if param.rate < account.price
     then (failwith "NO_WITHDRAWAL_ALLOWED": operation list * storage)
     else
       (* Current price is higher than price at deposit *)
