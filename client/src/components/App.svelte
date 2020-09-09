@@ -365,7 +365,7 @@
   }
 </style>
 
-{#if !loadingAccount && userAddress && userBalance}
+{#if !loadingAccount && userAddress && !isNaN(userBalance)}
   <div class="top-box">
     <p class="top-box__row">
       <img src={touchid} alt="touch-id" />
@@ -398,7 +398,7 @@
     {#if loadingAccount}
       <p>Loading account info...</p>
       <br />
-    {:else if !loadingAccount && userAddress && userBalance}
+    {:else if !loadingAccount && userAddress && !isNaN(userBalance)}
       <div class="user-info">
         {#if userAccount}
           {#if userAccount.price.toNumber() < rate}
