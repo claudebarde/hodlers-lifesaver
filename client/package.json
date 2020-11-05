@@ -17,8 +17,9 @@
     "svelte": "^3.12.1"
   },
   "dependencies": {
-    "@taquito/beacon-wallet": "^6.3.5-beta.0",
-    "@taquito/ledger-signer": "^6.4.0-ledger.0",
-    "@taquito/taquito": "^6.3.5-beta.0"
+    "@taquito/beacon-wallet": "^7.0.0-beta.0",
+    "@taquito/ledger-signer": "^7.0.0-beta.0",
+    "@taquito/taquito": "^7.0.0-beta.0",
+    "@thanos-wallet/dapp": "^1.0.1"
   }
 }

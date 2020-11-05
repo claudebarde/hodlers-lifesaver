@@ -1,7 +1,8 @@
 <script>
   import { onMount, onDestroy } from "svelte";
-  import { Tezos } from "@taquito/taquito";
+  import { TezosToolkit } from "@taquito/taquito";
   import { BeaconWallet } from "@taquito/beacon-wallet";
+  import { ThanosWallet } from "@thanos-wallet/dapp";
   import img from "../../public/images/weak-hands.png";
   import wallet from "../../public/images/icons8-wallet-48.png";
   import touchid from "../../public/images/icons8-touch-id-48.png";
@@ -9,7 +10,7 @@
   import code from "../../public/images/icons8-code-48.png";
   import github from "../../public/images/icons8-github-50.png";
 
-  let interval, oracle, contract, userAddress, userBalance, userAccount;
+  let interval, oracle, contract, userAddress, userBalance, userAccount, Tezos;
   let rate = 0;
   let network = "mainnet";
   let depositAmount = "";
@@ -32,60 +33,23 @@
 
   const connectWallet = async () => {
     loadingAccount = true;
-    const wallet = new BeaconWallet({
-      name: "Hodlers Lifesaver",
-      eventHandlers: {
-        P2P_LISTEN_FOR_CHANNEL_OPEN: {
-          handler: async data => {
-            console.log("Listening to P2P channel:", data);
-          }
-        },
-        P2P_CHANNEL_CONNECT_SUCCESS: {
-          handler: async data => {
-            console.log("Channel connected:", data);
-          }
-        },
-        PERMISSION_REQUEST_SENT: {
-          handler: async data => {
-            console.log("Permission request sent:", data);
-          }
-        },
-        PERMISSION_REQUEST_SUCCESS: {
-          handler: async data => {
-            console.log("Wallet is connected:", data);
-          }
-        },
-        OPERATION_REQUEST_SENT: {
-          handler: async data => {
-            console.log("Request broadcast:", data);
-          }
-        },
-        OPERATION_REQUEST_SUCCESS: {
-          handler: async data => {
-            console.log("Request broadcast success:", data);
-          }
-        }
+    if (await ThanosWallet.isAvailable()) {
+      const wallet = new ThanosWallet("Hodlers Lifesaver");
+      await wallet.connect(network);
+      Tezos.setWalletProvider(wallet);
+      userAddress = await wallet.getPKH();
+      userBalance = (await Tezos.tz.getBalance(userAddress)).toNumber();
+      // checks if user already has a deposit in the contract
+      const storage = await contract.storage();
+      const account = await storage.ledger.get(userAddress);
+      if (account) {
+        userAccount = account;
+      } else {
+        userAccount = undefined;
       }
-    });
-    await wallet.requestPermissions({
-      network: {
-        type: network,
-        rpcUrl: `https://${network}.smartpy.io`
-      }
-    });
-    Tezos.setWalletProvider(wallet);
-    userAddress = await wallet.getPKH();
-    userBalance = (await Tezos.tz.getBalance(userAddress)).toNumber();
-    // checks if user already has a deposit in the contract
-    const storage = await contract.storage();
-    const account = await storage.ledger.get(userAddress);
-    if (account) {
-      userAccount = account;
-    } else {
-      userAccount = undefined;
-    }
 
-    loadingAccount = false;
+      loadingAccount = false;
+    }
   };
 
   const deposit = async () => {
@@ -142,7 +106,7 @@
   };
 
   onMount(async () => {
-    Tezos.setRpcProvider(`https://${network}.smartpy.io`);
+    Tezos = new TezosToolkit(`https://${network}-tezos.giganode.io`);
     oracle = await Tezos.wallet.at(harbinger);
     rate = await fetchXTZtoUSD();
     contract = await Tezos.wallet.at(hodlers);
@@ -373,26 +337,22 @@
     </p>
     <p class="top-box__row">
       <img src={wallet} alt="wallet" />
-      ꜩ {(userBalance / 1000000).toLocaleString('en-US')}
+      ꜩ
+      {(userBalance / 1000000).toLocaleString('en-US')}
     </p>
     <p class="top-box__row">
       <img src={vault} alt="safe" />
-      ꜩ {userAccount ? userAccount.deposit.toNumber() / 10 ** 6 : 0}
+      ꜩ
+      {userAccount ? userAccount.deposit.toNumber() / 10 ** 6 : 0}
     </p>
   </div>
 {/if}
 <main>
-  <div id="banner">
-    <img src={img} alt="weak hands pic" />
-  </div>
+  <div id="banner"><img src={img} alt="weak hands pic" /></div>
   <div class="app">
     <h1>Hodlers Lifesaver</h1>
     <h3>Put your tez in the smart contract.</h3>
-    <h3>
-      Withdraw them only if
-      <br />
-      the exchange rate goes up.
-    </h3>
+    <h3>Withdraw them only if <br /> the exchange rate goes up.</h3>
     <p>Current exchange rate: 1 tez = ${rate / 10 ** 6}</p>
     <br />
     {#if loadingAccount}
